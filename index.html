@@ -7172,9 +7172,12 @@ var PERSONA_CODEX = {
     bar.innerHTML = "";
 
     function chip(label, value, opts) {
-      var b = el("button", "cat-chip", bar);
-      b.type = "button";
+      /* 用 span 而不是 button：button 里的 contenteditable 在 Chrome 里根本没法聚焦输入，
+         于是「+ 分类」建出来之后改不了名，看起来就是分类功能用不了 */
+      var b = el("span", "cat-chip", bar);
       b.dataset.cat = value;
+      b.setAttribute("role", "button");
+      b.tabIndex = 0;
       if (value === activeCat) b.classList.add("is-on");
       var nameSpan = el("span", "cat-name", b);
       nameSpan.textContent = label;
@@ -7192,6 +7195,16 @@ var PERSONA_CODEX = {
         });
       }
       b.addEventListener("click", function () {
+        /* 正在改名时别把它当成「筛选」 */
+        if (b.querySelector('[contenteditable="true"]')) return;
+        activeCat = activeCat === value ? "" : value;
+        buildCatBar();
+        applyComboFilter();
+      });
+      b.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        if (b.querySelector('[contenteditable="true"]')) return;
+        e.preventDefault();
         activeCat = activeCat === value ? "" : value;
         buildCatBar();
         applyComboFilter();
@@ -7211,10 +7224,12 @@ var PERSONA_CODEX = {
       var c = { id: catId(), name: "新分类" };
       comboCats.push(c);
       saveCats();
-      activeCat = c.id;
+      /* 别把筛选切到刚建的空分类上，否则卡片全被藏起来，看着像坏了 */
+      activeCat = "";
       buildCatBar();
       applyComboFilter();
       startCatRename(c.id);
+      if (typeof toast === "function") toast("新分类建好了 —— 改个名，然后在卡片「编辑」里选它");
     });
 
     var hint = el("span", "cat-hint", bar);
@@ -7227,21 +7242,38 @@ var PERSONA_CODEX = {
     if (!chipEl) return;
     var nameEl = chipEl.querySelector(".cat-name");
     var old = nameEl.textContent;
+    var finished = false;
     nameEl.setAttribute("contenteditable", "true");
+    nameEl.classList.add("is-editing");
     nameEl.focus();
+    /* 全选，直接打字就是替换（否则得先手动删掉「新分类」三个字） */
+    try {
+      var range = document.createRange();
+      range.selectNodeContents(nameEl);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) {}
     function done(save) {
+      if (finished) return;
+      finished = true;
       nameEl.removeAttribute("contenteditable");
+      nameEl.classList.remove("is-editing");
       var v = String(nameEl.textContent || "").replace(/\s+/g, "").slice(0, 8);
       if (!save || !v) v = old;
-      for (var i = 0; i < comboCats.length; i++) if (comboCats[i].id === id) comboCats[i].name = v;
+      var changed = false;
+      for (var i = 0; i < comboCats.length; i++) {
+        if (comboCats[i].id === id && comboCats[i].name !== v) { comboCats[i].name = v; changed = true; }
+      }
       saveCats();
       buildCatBar();
-      buildComboView();
+      if (changed) buildComboView();
       applyComboFilter();
     }
     nameEl.addEventListener("keydown", function (e) {
       if (e.key === "Enter") { e.preventDefault(); done(true); }
       else if (e.key === "Escape") { e.preventDefault(); done(false); }
+      e.stopPropagation();
     });
     nameEl.addEventListener("blur", function () { done(true); });
   }
@@ -7284,6 +7316,7 @@ var PERSONA_CODEX = {
     window.__VIEW_BUILDS__ = window.__VIEW_BUILDS__ || { combo: 0, lines: 0 };
     window.__VIEW_BUILDS__.combo++;
     comboGridEl.innerHTML = "";
+    buildCatBar();
     if (!combos.length) {
       var empty = el("div", "combo-empty", comboGridEl);
       empty.textContent = "还没有组合。点上面的「+ 新建一条」开始 —— 左键点格子标蓝，右键标红。";
@@ -7292,7 +7325,6 @@ var PERSONA_CODEX = {
     /* 一次只铺一屏多的卡：819 张全建出来会有两万多个节点，新建一条就卡一下 */
     comboShown = 0;
     appendComboPage(COMBO_PAGE);
-    buildCatBar();
     if (typeof applyComboFilter === "function") applyComboFilter();
     syncComboClamp();
     if (typeof requestAnimationFrame === "function") requestAnimationFrame(syncComboClamp);
@@ -7430,10 +7462,12 @@ var PERSONA_CODEX = {
     catSel.addEventListener("change", function () {
       c.cat = catSel.value;
       saveCombosNow();
-      /* 归完类这张卡必须还看得见：新分类不在当前筛选里，就把筛选切过去 */
-      if (!comboMatchesCat(c)) {
-        activeCat = c.cat || "";
-        if (typeof toast === "function" && c.cat) toast("已归到「" + catName(c.cat) + "」，左边已切到这个分类");
+      /* 归完类这张卡必须还看得见：没选分类时视同在「全部」里，光靠 comboMatchesCat 判断不出来 */
+      if (c.cat && activeCat !== c.cat) {
+        activeCat = c.cat;
+        if (typeof toast === "function") toast("已归到「" + catName(c.cat) + "」，左边已切到这个分类");
+      } else if (!c.cat && activeCat) {
+        activeCat = "";
       }
       buildCatBar();
       renderComboCard(card, c);
