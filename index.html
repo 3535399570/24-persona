@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>二十四人格体系</title>
+<meta name="description" content="24 人格面板：填等级、翻人格档案、整理思维阁与长篇分析。数据只存在你自己的浏览器里">
+<meta name="theme-color" content="#0b0b0d">
+<meta property="og:title" content="二十四人格体系">
+<meta property="og:description" content="24 人格面板 · 人格档案 · 思维阁 · 长篇分析">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="css/style.css?v=20261122b">
+</head>
+<body data-view="panel">
+<div class="vignette" aria-hidden="true"></div>
+
+<header class="masthead">
+  <div class="title-row">
+    <h1>二十四人格体系</h1>
+    <div class="quote">
+      <p class="quote-text">人是一切社会关系的总和</p>
+      <p class="quote-note">个体因承载多重社会身份（如学生、子女、朋友）而面临互不兼容的角色期望，从而产生角色间冲突。</p>
+    </div>
+    <p class="sub">点数字改写 · 点菱形快速定位 · 点卡面看人格档案 · 自动保存在本机</p>
+  </div>
+  <div class="totals">
+    <div class="total"><span class="t-label"><span id="name-a">A</span> 合计</span><span class="t-value" id="sum-a">0</span></div>
+    <div class="total total-a-max"><span class="t-label">最高</span><span class="t-value" id="max-a">0</span></div>
+  </div>
+</header>
+
+<main class="board-wrap">
+  <section class="filter" id="filter" data-open="0" aria-label="按人格筛选">
+    <div class="filter-head">
+      <button type="button" class="filter-toggle" id="filter-toggle" aria-expanded="false">
+        <span class="f-ico" aria-hidden="true">&#9906;</span>
+        <span>按人格筛选</span>
+        <span class="f-caret" aria-hidden="true">▾</span>
+      </button>
+      <div class="filter-sum" id="filter-sum"></div>
+      <button type="button" class="filter-clear" id="filter-clear" hidden>清空</button>
+    </div>
+    <div class="filter-body" id="filter-body"><!-- injected by js/app.js --></div>
+  </section>
+  <nav class="views" id="views" aria-label="界面切换">
+    <button type="button" data-view="panel">人格面板</button>
+    <button type="button" data-view="combo">思维阁</button>
+    <button type="button" data-view="lines">长篇分析</button>
+    <button type="button" data-view="profile">人物分析</button>
+  </nav>
+  <div class="boards" id="boards" data-view="panel"><!-- injected by js/app.js --></div>
+
+  <section class="combo-view" id="combo-view" data-view="panel">
+      <div class="cat-bar" id="cat-bar"></div>
+    <div class="combo-bar">
+      <div class="combo-search-wrap">
+        <input class="combo-search" id="combo-search" type="search" placeholder="搜标题 / 解释里的字…" aria-label="搜索思维阁">
+        <button type="button" class="combo-search-clear" id="combo-search-clear" hidden title="清空搜索">×</button>
+      </div>
+      <p class="combo-tip">一条卡 = 一个人物，或一种组合原型。左键点格子标蓝（突出），右键标红（弱化），再点一次取消。写完后只留选中的那几项。</p>
+      <div class="combo-actions">
+        <button type="button" class="combo-io" id="combo-exp" title="只把「思维阁」存成 JSON">组合导出</button>
+        <button type="button" class="combo-io" id="combo-expand-all" title="标题太长时可以整体展开">全部展开</button>
+        <button type="button" class="combo-io" id="combo-imp" title="读回之前导出的组合 JSON">组合导入</button>
+        <button type="button" class="combo-new" id="combo-new">+ 新建一条</button>
+      </div>
+    </div>
+    <input type="file" id="combo-file" accept="application/json,.json" hidden>
+    <div class="combo-grid" id="combo-grid"><!-- injected by js/app.js --></div>
+  </section>
+  <section class="lines-view" id="lines-view" data-view="panel">
+    <div class="cat-bar" id="line-cat-bar"></div>
+    <div class="combo-bar">
+      <div class="combo-search-wrap">
+        <input class="combo-search" id="line-search" type="search" placeholder="搜标题 / 正文里的字…" aria-label="搜索长篇分析">
+        <button type="button" class="combo-search-clear" id="line-search-clear" hidden title="清空搜索">×</button>
+      </div>
+      <p class="combo-tip">一篇 = 一个作品或一次分析，可以有很多段；每段行尾都能挂人格，点标签能翻开那个人格的档案</p>
+      <div class="combo-actions">
+        <button type="button" class="combo-io" id="line-exp" title="只把「长篇分析」存成 JSON">文章导出</button>
+        <button type="button" class="combo-io" id="line-imp" title="读回之前导出的文章 JSON">文章导入</button>
+        <button type="button" class="combo-new" id="line-new">+ 新建一篇</button>
+      </div>
+    </div>
+    <input type="file" id="line-file" accept="application/json,.json" hidden>
+    <div class="lines-grid" id="lines-grid"><!-- injected by js/app.js --></div>
+  </section>
+
+  <section class="profile-view" id="profile-view" data-view="panel" aria-label="人物分析">
+    <div class="combo-bar">
+      <div class="pf-tabs" id="profile-tabs"><!-- injected by js/app.js --></div>
+      <div class="combo-actions">
+        <button type="button" class="combo-io" id="profile-exp" title="把人物档案存成 JSON">档案导出</button>
+        <button type="button" class="combo-io" id="profile-imp" title="读回人物档案 JSON">档案导入</button>
+        <button type="button" class="combo-new" id="profile-new">+ 新建人物</button>
+      </div>
+    </div>
+    <input type="file" id="profile-file" accept="application/json,.json" hidden>
+    <div class="profile-stage is-empty" id="profile-stage"><!-- injected by js/app.js --></div>
+  </section>
+</main>
+
+<div class="hint" id="hint" aria-live="polite"></div>
+
+<nav class="toolbar" aria-label="面板操作">
+  <button type="button" data-action="reset" title="全部回到 0">重置</button>
+  <button type="button" data-action="random" title="随机一套（0–5）">随机</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button type="button" data-action="export" title="下载 JSON">导出</button>
+  <button type="button" data-action="import" title="读取 JSON">导入</button>
+  <button type="button" data-action="share" title="生成带数值的分享链接">分享</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button type="button" data-action="ballexp" title="把面板 / 思维阁 / 长篇分析 / 人物档案 / 图库全部存成一个文件">全部导出</button>
+  <button type="button" data-action="cexp" title="只把人格档案存成 JSON">档案导出</button>
+  <button type="button" data-action="cimp" title="读回之前导出的档案 JSON">档案导入</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button type="button" data-action="shot" title="收起工具栏再截图">截图模式</button>
+  <input type="file" id="import-file" accept="application/json,.json" hidden>
+  <input type="file" id="codex-file" accept="application/json,.json" hidden>
+</nav>
+
+<p class="credit">原作为极乐迪斯科，仅为同人二创</p>
+
+<script src="js/codex.js?v=20261122b"></script>
+<script src="js/app.js?v=20261122b"></script>
+</body>
+</html>
