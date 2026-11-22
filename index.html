@@ -7259,6 +7259,26 @@ var PERSONA_CODEX = {
     applyComboFilter();
   }
 
+  /* 思维阁是分页铺卡的：819 张全建出来 = 两万多个节点，每次新建都要卡一下 */
+  var COMBO_PAGE = 36;
+  var comboShown = 0;
+
+  function appendComboPage(n) {
+    if (!comboGridEl) return;
+    var end = Math.min(combos.length, comboShown + (n || COMBO_PAGE));
+    for (var i = comboShown; i < end; i++) buildComboCard(combos[i]);
+    comboShown = end;
+    if (typeof syncComboClamp === "function") syncComboClamp();
+  }
+
+  window.addEventListener("scroll", function () {
+    if (view !== "combo" || comboShown >= combos.length) return;
+    var doc = document.documentElement;
+    if (doc.scrollTop + window.innerHeight > doc.scrollHeight - 700) {
+      appendComboPage(COMBO_PAGE);
+    }
+  }, { passive: true });
+
   function renderComboView() {
     if (!comboGridEl) return;
     window.__VIEW_BUILDS__ = window.__VIEW_BUILDS__ || { combo: 0, lines: 0 };
@@ -7269,7 +7289,9 @@ var PERSONA_CODEX = {
       empty.textContent = "还没有组合。点上面的「+ 新建一条」开始 —— 左键点格子标蓝，右键标红。";
       return;
     }
-    combos.forEach(function (c) { buildComboCard(c); });
+    /* 一次只铺一屏多的卡：819 张全建出来会有两万多个节点，新建一条就卡一下 */
+    comboShown = 0;
+    appendComboPage(COMBO_PAGE);
     buildCatBar();
     if (typeof applyComboFilter === "function") applyComboFilter();
     syncComboClamp();
@@ -7578,6 +7600,7 @@ var PERSONA_CODEX = {
     });
 
     renderComboCard(card, c);
+    return card;
   }
 
   function sidePicks(c) {
@@ -7777,9 +7800,19 @@ var PERSONA_CODEX = {
     c.editing = true;
     combos.unshift(c);
     saveCombos();
-    buildComboView();
-    var first = comboGridEl.querySelector(".cc:first-child .cc-title");
-    if (first) first.focus();
+    /* 增量插入：不要为了加一张卡把几百张重建一遍 */
+    if (view === "combo" && comboGridEl) {
+      var card = buildComboCard(c);
+      if (card && card.parentNode === comboGridEl) comboGridEl.insertBefore(card, comboGridEl.firstChild);
+      comboShown += 1;
+      if (typeof applyComboFilter === "function") applyComboFilter();
+      var first0 = comboGridEl.querySelector(".cc:first-child .cc-title");
+      if (first0) first0.focus();
+    } else {
+      buildComboView();
+      var first = comboGridEl.querySelector(".cc:first-child .cc-title");
+      if (first) first.focus();
+    }
     toast("新建了一条：左键点格子标蓝，右键标红");
   }
 
@@ -10739,25 +10772,42 @@ var PERSONA_CODEX = {
 
   function applyComboFilter() {
     if (!comboGridEl) return;
-    var cards = comboGridEl.querySelectorAll(".cc");
-    var shown = 0;
-    Array.prototype.forEach.call(cards, function (card) {
-      var c = null;
-      for (var i = 0; i < combos.length; i++) if (combos[i].id === card.dataset.id) c = combos[i];
-      var ok = !c || (comboMatchesCat(c) && comboMatchesFilter(c));
-      card.hidden = !ok;
-      if (ok) shown++;
-    });
+    var byId = {};
+    for (var j = 0; j < combos.length; j++) byId[combos[j].id] = combos[j];
 
+    function paint() {
+      var cards = comboGridEl.querySelectorAll(".cc");
+      var shown = 0;
+      Array.prototype.forEach.call(cards, function (card) {
+        var c = byId[card.dataset.id];
+        var ok = !c || (comboMatchesCat(c) && comboMatchesFilter(c));
+        card.hidden = !ok;
+        if (ok) shown++;
+      });
+      return shown;
+    }
+
+    var shown = paint();
     var active = filterActive();
+
+    /* 命中项可能都在后面几页：继续往后补，直到有可见的或铺完 */
+    if (active && !shown && comboShown < combos.length) {
+      var guard = 0;
+      while (shown === 0 && comboShown < combos.length && guard++ < 60) {
+        appendComboPage(COMBO_PAGE);
+        shown = paint();
+      }
+    }
+
     var count = document.getElementById("filter-count");
     if (filterSumEl && active) {
+      Array.prototype.forEach.call(filterSumEl.querySelectorAll(".fs-count"), function (n) { n.remove(); });
       var tail = el("span", "fs-count", filterSumEl);
-      tail.textContent = "命中 " + shown + " / " + cards.length + " 条";
+      tail.textContent = "命中 " + shown + " / " + combos.length + " 条";
     }
 
     if (filterEmptyEl) { filterEmptyEl.remove(); filterEmptyEl = null; }
-    if (active && cards.length && !shown) {
+    if (active && !shown && comboShown >= combos.length) {
       filterEmptyEl = el("div", "combo-empty", comboGridEl);
       filterEmptyEl.textContent = comboQuery
         ? ("没有标题或解释里含「" + comboQuery + "」的组合 —— 点搜索框右边的 × 清空。")
