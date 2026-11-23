@@ -9238,14 +9238,14 @@ var PERSONA_CODEX = {
     var s = entry ? entry.sections : null;
     if (entry) {
       section("关键词", function (wrap) { chips(wrap, s.keywords, "keywords"); });
-      section("职业 / 身份", function (wrap) { chips(wrap, s.job, "job"); });
+      section("职业 / 身份 / 外在表现", function (wrap) { chips(wrap, s.job, "job"); });
       section("代表", function (wrap) { chips(wrap, s.figures, "figures"); });
       section("名言 / 语录", function (wrap) { quoteList(wrap, s.quotes); });
       section("实例", function (wrap) { sceneList(wrap, s.scenes); });
       section("机制 / 设定", function (wrap) { mechList(wrap, s.mechanics); });
     } else {
       section("关键词", function (wrap) { chips(wrap, [], "keywords"); });
-      section("职业 / 身份", function (wrap) { chips(wrap, [], "job"); });
+      section("职业 / 身份 / 外在表现", function (wrap) { chips(wrap, [], "job"); });
       section("代表", function (wrap) { chips(wrap, [], "figures"); });
       section("名言 / 语录", function (wrap) { quoteList(wrap, []); });
       section("实例", function (wrap) { sceneList(wrap, []); });
