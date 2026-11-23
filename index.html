@@ -2982,10 +2982,29 @@ body[data-view="profile"] .lines-view { display: none; }
   border-color: rgba(255, 255, 255, .16);
   border-style: dashed;
 }
-.pf-picked-from {
-  position: absolute; left: 11px; bottom: 8px;
-  font-size: 10px; letter-spacing: .12em; color: #7f8890;
+.pf-picked-groups { display: flex; flex-direction: column; gap: 14px; }
+.pf-picked-group { --stageh: 197; }
+.pf-picked-group[data-idx="1"] { --stageh: 42; }
+.pf-picked-group[data-idx="2"] { --stageh: 268; }
+.pf-picked-group[data-idx="3"] { --stageh: 340; }
+.pf-picked-group[data-idx="4"] { --stageh: 152; }
+.pf-picked-group[data-idx="5"] { --stageh: 18; }
+.pf-picked-ghead {
+  display: flex; align-items: center; gap: 7px; margin: 0 0 7px;
+  font-size: 10.5px; letter-spacing: .16em; color: #a79d8c;
 }
+.pf-picked-ghead::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: hsl(var(--stageh) 52% 58%);
+  box-shadow: 0 0 0 3px hsl(var(--stageh) 52% 58% / .16);
+}
+.pf-picked-ghead b { font-weight: 500; color: #cfc7b8; }
+.pf-picked-gtag {
+  padding: 0 5px 1px; border-radius: 999px; font-size: 9.5px; letter-spacing: .08em;
+  color: #b9e0ee; border: 1px solid rgba(111, 179, 201, .34);
+}
+.pf-picked-gcount { margin-left: 7px; font-size: 10px; letter-spacing: 0; color: #8a8378; }
+.pf-picked-group .pf-picked-card { border-left: 2px solid hsl(var(--stageh) 45% 58% / .55); }
 .pf-picked-drop {
   position: absolute; right: 8px; bottom: 7px;
   font: inherit; font-size: 10.5px; letter-spacing: .06em; cursor: pointer;
@@ -10402,23 +10421,39 @@ var PERSONA_CODEX = {
     if (!cards.length) {
       return html + '<p class="pf-hint">还没收卡。右边挑一张，收进来的会排到这里——只挂关系，分数还是你自己调。</p></section>';
     }
-    html += '<div class="pf-picked-list">';
+    /* 按「哪一段收的」分组，免得继承来的一堆卡糊成一片 */
+    var groups = [];
     links.forEach(function (l) {
-      var c = comboById(l.cid);
-      if (!c) return;
-      var isDead = !!p.dropped[l.cid];
-      var picks = capChipsHtml(c, "pf-picked-cap");
-      if (!picks) picks = '<span class="pf-picked-cap is-empty">没有标突出 / 弱化的项</span>';
-      var fromName = (p.stages[l.from] && p.stages[l.from].name) || "";
-      var title = isDead
-        ? "这张卡这一段已弃用；点「启用」让它重新算数"
-        : (l.own ? "点一下取消这张卡" : "从「" + fromName + "」继承来的；这一段可以点右下角「弃用」");
-      html += '<div class="pf-picked-card' + (isDead ? " is-dead" : "") + '" role="button" tabindex="0" data-cid="' + esc(c.id) + '" title="' + esc(title) + '">' +
-        '<span class="pf-picked-name">' + esc(c.title || "没起名字的组合") + '</span>' +
-        '<span class="pf-picked-caps">' + picks + '</span>' +
-        '<span class="pf-picked-from">' + (l.own ? "本段" : esc(fromName)) + '</span>' +
-        '<button type="button" class="pf-picked-drop" data-drop="' + esc(c.id) + '">' + (isDead ? "启用" : "弃用") + '</button>' +
-        '</div>';
+      var g = null;
+      for (var gi = 0; gi < groups.length; gi++) if (groups[gi].idx === l.from) g = groups[gi];
+      if (!g) { g = { idx: l.from, list: [] }; groups.push(g); }
+      g.list.push(l);
+    });
+    html += '<div class="pf-picked-groups">';
+    groups.forEach(function (g) {
+      var gname = (p.stages[g.idx] && p.stages[g.idx].name) || ("第 " + (g.idx + 1) + " 段");
+      var gDead = g.list.filter(function (l) { return !!p.dropped[l.cid]; }).length;
+      html += '<div class="pf-picked-group" data-idx="' + (g.idx % 6) + '">' +
+        '<div class="pf-picked-ghead"><b>' + esc(gname) + '</b>' +
+        (g.idx === p.stage ? '<span class="pf-picked-gtag">本段</span>' : '') +
+        '<span class="pf-picked-gcount">' + g.list.length + (gDead ? " · 弃用 " + gDead : "") + '</span></div>' +
+        '<div class="pf-picked-list">';
+      g.list.forEach(function (l) {
+        var c = comboById(l.cid);
+        if (!c) return;
+        var isDead = !!p.dropped[l.cid];
+        var picks = capChipsHtml(c, "pf-picked-cap");
+        if (!picks) picks = '<span class="pf-picked-cap is-empty">没有标突出 / 弱化的项</span>';
+        var title = isDead
+          ? "这张卡这一段已弃用；点「启用」让它重新算数"
+          : (l.own ? "点一下取消这张卡（右键改卡）" : "从「" + gname + "」继承来的；这一段可以点右下角「弃用」");
+        html += '<div class="pf-picked-card' + (isDead ? " is-dead" : "") + '" role="button" tabindex="0" data-cid="' + esc(c.id) + '" title="' + esc(title) + '">' +
+          '<span class="pf-picked-name">' + esc(c.title || "没起名字的组合") + '</span>' +
+          '<span class="pf-picked-caps">' + picks + '</span>' +
+          '<button type="button" class="pf-picked-drop" data-drop="' + esc(c.id) + '">' + (isDead ? "启用" : "弃用") + '</button>' +
+          '</div>';
+      });
+      html += '</div></div>';
     });
     return html + '</div></section>';
   }
