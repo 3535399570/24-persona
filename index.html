@@ -9543,6 +9543,7 @@ var PERSONA_CODEX = {
 
   /* ------------------------------------------------ 人物分析（第四界面） */
   var PROFILES_KEY = NS + "de-profile-v1";
+  var OLD_STAGE_NAMES = ["前期", "中期", "后期", "终章"];   /* 老数据的默认阶段名，读到就换成「开局 / 转折点 N」 */
   var LINK_KINDS = ["搭档", "上级", "对手", "朋友", "其他"];
   var profiles = loadProfiles();
 
@@ -9648,12 +9649,15 @@ var PERSONA_CODEX = {
     p.stages = stageSrcs.length
       ? stageSrcs.map(function (st, i) {
           var d = readStageData(st);
+          var nm = cleanStageName(st && st.name, i);
+          /* 老数据里叫「前期 / 中期 / 后期 / 终章」的，按位置换成新叫法 */
+          if (nm === (OLD_STAGE_NAMES[i] || "")) nm = stageDefaultName(i);
           return {
-            name: cleanStageName(st && st.name, i),
+            name: nm,
             scores: d.scores, attrs: d.attrs, combos: d.combos, crowns: d.crowns
           };
         })
-      : [{ name: "前期", scores: p.scores, attrs: p.attrs, combos: p.combos, crowns: p.crowns }];
+      : [{ name: stageDefaultName(0), scores: p.scores, attrs: p.attrs, combos: p.combos, crowns: p.crowns }];
 
     var si = parseInt((src && src.stage) || 0, 10);
     p.stage = si >= 0 && si < p.stages.length ? si : 0;
@@ -9823,7 +9827,7 @@ var PERSONA_CODEX = {
     applyProfileComboFilter();     /* 重渲染后把搜索 / 分类状态接着用 */
   }
 
-  /* 思维阁 → 人物：一张卡里「突出」的人格，收进来就各 +1 */
+  /* 思维阁 → 人物：收一张卡只是挂上关系，分数由自己调 */
   function comboLinkOf(p, cid) {
     for (var i = 0; i < p.combos.length; i++) {
       if (p.combos[i].cid === cid) return p.combos[i];
@@ -10060,10 +10064,13 @@ var PERSONA_CODEX = {
   /* 右栏的筛选状态：切人物 / 重渲染后还在 */
   var pfComboQuery = "";
   /* 人物是会长大的：每个阶段一套分数 / 王冠 / 收的卡，左右按钮在阶段之间走 */
-  var STAGE_DEFAULT = ["前期", "中期", "后期", "终章"];
+  /* 第一段叫「开局」，后面每加一段就是「转折点 1」「转折点 2」…… */
+  function stageDefaultName(i) {
+    return i === 0 ? "开局" : "转折点 " + i;
+  }
   function cleanStageName(v, i) {
     var nm = String(v || "").trim().slice(0, 8);
-    return nm || (STAGE_DEFAULT[i] || ("阶段 " + (i + 1)));
+    return nm || stageDefaultName(i);
   }
   function deepMap(o) {
     var out = {};
@@ -10105,7 +10112,7 @@ var PERSONA_CODEX = {
     flushStage(p);
     var src = p.stages[p.stage];
     var idx = p.stage + 1;
-    var nm = STAGE_DEFAULT[p.stages.length] || ("阶段 " + (p.stages.length + 1));
+    var nm = stageDefaultName(p.stages.length);
     p.stages.splice(idx, 0, {
       name: nm,
       scores: Object.assign({}, src.scores),
@@ -10235,7 +10242,7 @@ var PERSONA_CODEX = {
       html += '<li><button type="button" class="pf-combo' + (on ? " is-on" : "") +
         '" data-cid="' + esc(c.id) + '" data-cat="' + esc(c.cat || "__none") +
         '" data-text="' + esc(comboSearchText(c)) + '" title="' +
-        esc(on ? "取消这张卡，分数退回" : "收进这个人，突出的人格各 +1（红的不加分）") + '">' +
+        esc(on ? "取消这张卡" : "收进这个人（只挂关系，不改分数）") + '">' +
         '<span class="pf-combo-title">' + esc(c.title || "没起名字的组合") + '</span>' +
         '<span class="pf-combo-hold">' +
           '<span class="pf-combo-cat">' + esc(comboCatLabel(c)) + '</span>' +
@@ -10305,7 +10312,7 @@ var PERSONA_CODEX = {
     var cards = p.combos.map(function (l) { return comboById(l.cid); }).filter(Boolean);
     var html = '<section class="pf-picked"><h3>收进来的思维阁 <span class="pf-picked-n">' + cards.length + '</span></h3>';
     if (!cards.length) {
-      return html + '<p class="pf-hint">还没收卡。右边挑一张：卡上「突出」的人格各 +1，收进来的会排到这里，点一下就能取消。</p></section>';
+      return html + '<p class="pf-hint">还没收卡。右边挑一张，收进来的会排到这里——只挂关系，分数还是你自己调，点一下就能取消。</p></section>';
     }
     html += '<div class="pf-picked-list">';
     p.combos.forEach(function (l) {
@@ -10313,7 +10320,7 @@ var PERSONA_CODEX = {
       if (!c) return;
       var picks = capChipsHtml(c, "pf-picked-cap");
       if (!picks) picks = '<span class="pf-picked-cap is-empty">没有标突出 / 弱化的项</span>';
-      html += '<button type="button" class="pf-picked-card" data-cid="' + esc(c.id) + '" title="点一下取消这张卡，分数退回去">' +
+      html += '<button type="button" class="pf-picked-card" data-cid="' + esc(c.id) + '" title="点一下取消这张卡">' +
         '<span class="pf-picked-name">' + esc(c.title || "没起名字的组合") + '</span>' +
         '<span class="pf-picked-caps">' + picks + '</span>' +
         '<span class="pf-picked-x" aria-hidden="true">×</span></button>';
@@ -10385,21 +10392,11 @@ var PERSONA_CODEX = {
         });
       }
       p.combos = p.combos.filter(function (x) { return x.cid !== cid; });
-      toast("已取消这张卡，分数退回去了");
+      toast("已取消这张卡");
     } else {
-      var adds = {};
-      upSkillsOf(c).forEach(function (k) {
-        var cur = p.scores[k.id] || 0;
-        if (cur >= MAX_LEVEL) return;      /* 已经顶格：不加，取消时也不减 */
-        p.scores[k.id] = cur + 1;
-        adds[k.id] = 1;
-      });
-      if (!Object.keys(adds).length) {
-        toast("这张卡上的人格都已经到 5 了，加不上去");
-        return;
-      }
-      p.combos.push({ cid: cid, adds: adds });
-      toast("收进「" + (c.title || "这条组合") + "」，突出的人格各 +1");
+      /* 挑卡只挂关系，不改分数：分数由你自己调 */
+      p.combos.push({ cid: cid, adds: {} });
+      toast("收进「" + (c.title || "这条组合") + "」，只记下这张卡，分数不动");
     }
     saveProfiles();
     renderProfileStage();
@@ -10722,7 +10719,7 @@ var PERSONA_CODEX = {
   var filterToggleEl = document.getElementById("filter-toggle");
   var filterEmptyEl = null;
 
-  function filterActive() { return Object.keys(filterSel).length > 0 || !!comboQuery; }
+  function filterActive() { return Object.keys(filterSel).length > 0 || !!comboQuery || !!activeCat; }
 
   function comboMatchesCat(c) {
     if (!activeCat) return true;
@@ -10824,10 +10821,12 @@ var PERSONA_CODEX = {
     var shown = paint();
     var active = filterActive();
 
-    /* 命中项可能都在后面几页：继续往后补，直到有可见的或铺完 */
-    if (active && !shown && comboShown < combos.length) {
+    /* 命中的卡可能都被挤在后面几页；分类筛选后尤其明显：隐藏的卡不占高度，
+       页面撑不满就不会触发滚动加载，看起来就是「只出来几条、剩下的加载不出来」。
+       所以这里继续往后补，直到凑够一屏左右，或者全部铺完。 */
+    if (active && comboShown < combos.length) {
       var guard = 0;
-      while (shown === 0 && comboShown < combos.length && guard++ < 60) {
+      while (shown < 12 && comboShown < combos.length && guard++ < 200) {
         appendComboPage(COMBO_PAGE);
         shown = paint();
       }
