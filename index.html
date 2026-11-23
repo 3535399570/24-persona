@@ -8502,9 +8502,15 @@ var PERSONA_CODEX = {
       if (localStorage.getItem(flag)) return Promise.resolve(false);
     } catch (e) { return Promise.resolve(false); }
     var urls = map[sid];
+    var arrived = 0;
     var jobs = urls.map(function (u) {
       return fetch(assetUrl(u)).then(function (r) { return r.blob(); })
         .then(function (b) { return mediaAdd(sid, b); })
+        .then(function () {
+          arrived++;
+          /* 边下边显示：每收到 3 张就重画一次，不用等整组下完 */
+          if (arrived % 3 === 0) renderGallery(sid);
+        })
         .catch(function () {});
     });
     return Promise.all(jobs).then(function () {
