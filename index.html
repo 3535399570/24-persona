@@ -10298,12 +10298,13 @@ var PERSONA_CODEX = {
     }).join('');
     var upN = Object.keys(d.picks).filter(function (id) { return d.picks[id] === "up"; }).length;
     var downN = Object.keys(d.picks).filter(function (id) { return d.picks[id] === "down"; }).length;
+    var isEdit = !!d._editId;
     return '<div class="pf-newcard">' +
-      '<input class="pf-nc-title" id="pf-nc-title" type="text" maxlength="40" placeholder="这张卡叫什么（比如：搭档原型）" value="' + esc(d.title) + '" aria-label="新卡的名字">' +
+      '<input class="pf-nc-title" id="pf-nc-title" type="text" maxlength="40" placeholder="这张卡叫什么（比如：搭档原型）" value="' + esc(d.title) + '" aria-label="' + (isEdit ? "改卡名" : "新卡的名字") + '">' +
       rows +
-      '<p class="pf-nc-tip">左键标蓝＝突出（收进来时 +1），右键标红＝弱化，再点一下取消。现在：突出 ' + upN + ' · 弱化 ' + downN + '</p>' +
+      '<p class="pf-nc-tip">左键标蓝＝突出，右键标红＝弱化，再点一下取消。现在：突出 ' + upN + ' · 弱化 ' + downN + '</p>' +
       '<div class="pf-nc-actions">' +
-        '<button type="button" class="pf-btn is-primary" data-pf="newcard-save">存进思维阁</button>' +
+        '<button type="button" class="pf-btn is-primary" data-pf="newcard-save">' + (isEdit ? "存回思维阁" : "存进思维阁") + '</button>' +
         '<button type="button" class="pf-btn" data-pf="newcard-cancel">取消</button>' +
       '</div></div>';
   }
@@ -10317,6 +10318,19 @@ var PERSONA_CODEX = {
     comboCats.push(c);
     saveCats();
     return c.id;
+  }
+
+  /* 右击已收 / 待收的卡：就地改它，不用切回思维阁 */
+  function openCardEditor(cid) {
+    var src = comboById(cid);
+    if (!src) return;
+    pfNewDraft = normalizeCombo(src);
+    pfNewDraft._editId = cid;
+    pfNewDraft.title = src.title || "";
+    renderProfileStage();
+    var tEl = document.getElementById("pf-nc-title");
+    if (tEl) { tEl.focus(); tEl.select(); }
+    toast("改这张卡：左键标蓝、右键标红，改完点「存回思维阁」");
   }
 
   function saveNewCard() {
@@ -10335,6 +10349,18 @@ var PERSONA_CODEX = {
     var c = normalizeCombo(pfNewDraft);
     c.title = title || "没起名字的组合";
     c.editing = false;
+    if (pfNewDraft._editId) {
+      var target = comboById(pfNewDraft._editId);
+      if (target) {
+        target.title = c.title;
+        target.picks = c.picks;
+      }
+      saveCombos();
+      pfNewDraft = null;
+      renderProfileStage();
+      toast("改好了「" + c.title + "」");
+      return;
+    }
     combos.unshift(c);
     saveCombos();
     pfNewDraft = null;
@@ -10509,6 +10535,7 @@ var PERSONA_CODEX = {
         if (pick) { toggleProfileCombo(p, pick.dataset.cid); return; }
 
         /* 现场新建的卡：点格子三态循环，右键直接标红 */
+
         var ncCell = e.target.closest("[data-ncs]");
         if (ncCell && pfNewDraft) {
           var ncid = ncCell.dataset.ncs;
@@ -10631,6 +10658,14 @@ var PERSONA_CODEX = {
       stage.addEventListener("contextmenu", function (e) {
         var p0 = currentProfile();
         if (!p0) return;
+
+        /* 右击卡片：就地编辑这张卡，省得切回思维阁（弃用按钮除外） */
+        var editCard = e.target.closest(".pf-picked-card, .pf-combo");
+        if (editCard && !e.target.closest(".pf-picked-drop")) {
+          e.preventDefault();
+          openCardEditor(editCard.dataset.cid);
+          return;
+        }
 
         var ncCell = e.target.closest("[data-ncs]");
         if (ncCell && pfNewDraft) {
