@@ -10080,8 +10080,9 @@ var PERSONA_CODEX = {
     });
     return out;
   }
+  /* 挑卡已经不改分了：老档案里记得的「加过多少」一律清零，免得取消时又把分扣掉 */
   function deepCombos(a) {
-    return (a || []).map(function (c) { return { cid: c.cid, adds: Object.assign({}, c.adds || {}) }; });
+    return (a || []).map(function (c) { return { cid: c.cid, adds: {} }; });
   }
   function loadStageInto(p, i) {
     var st = p.stages && p.stages[i];
