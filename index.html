@@ -2970,12 +2970,35 @@ body[data-view="profile"] .lines-view { display: none; }
 .pf-picked-card {
   display: flex; flex-direction: column; gap: 5px; align-items: flex-start;
   position: relative; font: inherit; text-align: left; cursor: pointer;
-  padding: 9px 30px 10px 11px; border-radius: 10px;
+  padding: 9px 62px 26px 11px; border-radius: 10px;
   color: #cfc7b8; background: rgba(111, 179, 201, .07);
   border: 1px solid rgba(111, 179, 201, .30);
-  transition: background .12s, border-color .12s;
+  transition: background .12s, border-color .12s, opacity .12s;
 }
 .pf-picked-card:hover { background: rgba(111, 179, 201, .13); border-color: rgba(111, 179, 201, .55); }
+.pf-picked-card.is-dead {
+  opacity: .46; filter: grayscale(.85);
+  background: rgba(255, 255, 255, .03);
+  border-color: rgba(255, 255, 255, .16);
+  border-style: dashed;
+}
+.pf-picked-from {
+  position: absolute; left: 11px; bottom: 8px;
+  font-size: 10px; letter-spacing: .12em; color: #7f8890;
+}
+.pf-picked-drop {
+  position: absolute; right: 8px; bottom: 7px;
+  font: inherit; font-size: 10.5px; letter-spacing: .06em; cursor: pointer;
+  padding: 2px 7px 3px; border-radius: 999px;
+  color: #9aa1a8; background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .16);
+  transition: color .12s, border-color .12s, background .12s;
+}
+.pf-picked-drop:hover { color: #f2cbc6; border-color: rgba(196, 62, 52, .5); background: rgba(190, 62, 52, .14); }
+.pf-picked-card.is-dead .pf-picked-drop:hover { color: #b9e0ee; border-color: rgba(111, 179, 201, .5); background: rgba(111, 179, 201, .14); }
+.pf-picked-dead-n {
+  margin-left: 6px; font-size: 10px; letter-spacing: 0; color: #8f8b84;
+}
 .pf-picked-name { font-size: 12.5px; line-height: 1.4; color: #d8f0f8; }
 .pf-picked-caps { display: flex; flex-wrap: wrap; gap: 4px; }
 .pf-picked-cap {
@@ -2992,11 +3015,6 @@ body[data-view="profile"] .lines-view { display: none; }
   border-color: rgba(196, 62, 52, .46);
 }
 .pf-picked-cap.is-empty { color: #8c8579; background: none; border-color: rgba(255, 255, 255, .12); }
-.pf-picked-x {
-  position: absolute; top: 6px; right: 8px; font-size: 13px; line-height: 1;
-  color: #7d8f96;
-}
-.pf-picked-card:hover .pf-picked-x { color: #ef8f7f; }
 
 /* 人物分析里的招牌王冠：跟主界面那张卡一个意思 */
 .pf-cell { position: relative; }
@@ -9589,6 +9607,7 @@ var PERSONA_CODEX = {
       combos: [],                  /* 当前阶段收进来的卡：[{ cid, adds }] */
       attrs: {},                   /* 当前阶段的属性档值 */
       crowns: {},                  /* 当前阶段的王冠 */
+      dropped: {},                 /* 当前阶段「弃用」的卡：cid → true */
       stages: [],                  /* [{ name, scores, attrs, combos, crowns }]，前期 / 中期 / 后期… */
       stage: 0                     /* 现在停在第几段 */
     };
@@ -9654,10 +9673,11 @@ var PERSONA_CODEX = {
           if (nm === (OLD_STAGE_NAMES[i] || "")) nm = stageDefaultName(i);
           return {
             name: nm,
-            scores: d.scores, attrs: d.attrs, combos: d.combos, crowns: d.crowns
+            scores: d.scores, attrs: d.attrs, combos: d.combos, crowns: d.crowns,
+            dropped: deepFlags(st && st.dropped)
           };
         })
-      : [{ name: stageDefaultName(0), scores: p.scores, attrs: p.attrs, combos: p.combos, crowns: p.crowns }];
+      : [{ name: stageDefaultName(0), scores: p.scores, attrs: p.attrs, combos: p.combos, crowns: p.crowns, dropped: {} }];
 
     var si = parseInt((src && src.stage) || 0, 10);
     p.stage = si >= 0 && si < p.stages.length ? si : 0;
@@ -9835,13 +9855,16 @@ var PERSONA_CODEX = {
     return null;
   }
 
-  function combosWithUp() {
+  /* 标了突出或弱化都算「有内容」，只有红项的卡也能收 */
+  function combosWithPicks() {
     return combos.filter(function (c) {
       var pk = c.picks || {};
-      for (var k in pk) { if (pk[k] === "up") return true; }
+      for (var k in pk) { if (pk[k] === "up" || pk[k] === "down") return true; }
       return false;
     });
   }
+  /* 旧名字留着，别的地方还在用 */
+  function combosWithUp() { return combosWithPicks(); }
 
   function upSkillsOf(c) {
     var out = [];
@@ -10084,6 +10107,12 @@ var PERSONA_CODEX = {
   function deepCombos(a) {
     return (a || []).map(function (c) { return { cid: c.cid, adds: {} }; });
   }
+  /* 每一段自己的「弃用」名单：卡还在，但这一段不算它了 */
+  function deepFlags(o) {
+    var out = {};
+    Object.keys(o || {}).forEach(function (k) { if (o[k]) out[k] = true; });
+    return out;
+  }
   function loadStageInto(p, i) {
     var st = p.stages && p.stages[i];
     if (!st) return;
@@ -10091,6 +10120,7 @@ var PERSONA_CODEX = {
     p.attrs = Object.assign({}, st.attrs);
     p.combos = deepCombos(st.combos);
     p.crowns = deepMap(st.crowns);
+    p.dropped = deepFlags(st.dropped);
   }
   function flushStage(p) {
     var st = p.stages && p.stages[p.stage];
@@ -10099,6 +10129,7 @@ var PERSONA_CODEX = {
     st.attrs = Object.assign({}, p.attrs);
     st.combos = deepCombos(p.combos);
     st.crowns = deepMap(p.crowns);
+    st.dropped = deepFlags(p.dropped);
   }
   function switchStage(p, i) {
     if (!p.stages || i < 0 || i >= p.stages.length || i === p.stage) return;
@@ -10119,7 +10150,8 @@ var PERSONA_CODEX = {
       scores: Object.assign({}, src.scores),
       attrs: Object.assign({}, src.attrs),
       combos: deepCombos(src.combos),
-      crowns: deepMap(src.crowns)
+      crowns: deepMap(src.crowns),
+      dropped: deepFlags(src.dropped)
     });
     p.stage = idx;
     loadStageInto(p, idx);
@@ -10292,9 +10324,11 @@ var PERSONA_CODEX = {
     var titleEl = document.getElementById("pf-nc-title");
     var title = titleEl ? titleEl.value.replace(/\s+/g, " ").trim().slice(0, 40) : pfNewDraft.title;
     pfNewDraft.title = title;
-    var ups = Object.keys(pfNewDraft.picks).filter(function (id) { return pfNewDraft.picks[id] === "up"; });
-    if (!ups.length) {
-      toast("至少给一项标蓝（突出），不然这张卡收进谁身上都不加分");
+    var marked = Object.keys(pfNewDraft.picks).filter(function (id) {
+      return pfNewDraft.picks[id] === "up" || pfNewDraft.picks[id] === "down";
+    });
+    if (!marked.length) {
+      toast("先点几项再存：一项都没标的卡是空卡");
       return;
     }
     pfNewDraft.cat = profileCatId();          /* 现场建的卡统一归到「人物分析」 */
@@ -10304,27 +10338,61 @@ var PERSONA_CODEX = {
     combos.unshift(c);
     saveCombos();
     pfNewDraft = null;
+    /* 现场建的卡，顺手挂到当前这一段上（不用再去右边点一次） */
+    var cur = currentProfile();
+    var hanged = false;
+    if (cur && !cur.combos.some(function (x) { return x.cid === c.id; })) {
+      cur.combos.push({ cid: c.id, adds: {} });
+      delete cur.dropped[c.id];
+      saveProfiles();
+      hanged = true;
+    }
     renderProfileStage();
-    toast("建好「" + c.title + "」，已经在下面的列表里，点它就能收");
+    toast(hanged
+      ? "建好「" + c.title + "」，已经记在这一段上了"
+      : "建好「" + c.title + "」，已经在下面的列表里");
   }
 
-  /* 已经收进这个人身上的卡：放在矩阵下面，一眼看全 */
+  /* 前面几段收的卡会继承下来；本段可以把某张「弃用」，它变灰、这一段就不算它 */
+  function stageCardLinks(p) {
+    var seen = {}, list = [];
+    for (var i = 0; i <= p.stage; i++) {
+      var arr = (i === p.stage) ? p.combos : ((p.stages[i] && p.stages[i].combos) || []);
+      arr.forEach(function (l) {
+        if (!l || !l.cid || seen[l.cid]) return;
+        seen[l.cid] = true;
+        list.push({ cid: l.cid, own: i === p.stage, from: i });
+      });
+    }
+    return list;
+  }
+  /* 已经收进这个人身上的卡（含继承）：放在矩阵下面，一眼看全 */
   function profilePickedHtml(p) {
-    var cards = p.combos.map(function (l) { return comboById(l.cid); }).filter(Boolean);
-    var html = '<section class="pf-picked"><h3>收进来的思维阁 <span class="pf-picked-n">' + cards.length + '</span></h3>';
+    var links = stageCardLinks(p);
+    var cards = links.map(function (l) { return comboById(l.cid); }).filter(Boolean);
+    var dead = links.filter(function (l) { return !!p.dropped[l.cid]; }).length;
+    var html = '<section class="pf-picked"><h3>思维阁 <span class="pf-picked-n">' + cards.length + '</span>' +
+      (dead ? '<span class="pf-picked-dead-n">· 弃用 ' + dead + '</span>' : '') + '</h3>';
     if (!cards.length) {
-      return html + '<p class="pf-hint">还没收卡。右边挑一张，收进来的会排到这里——只挂关系，分数还是你自己调，点一下就能取消。</p></section>';
+      return html + '<p class="pf-hint">还没收卡。右边挑一张，收进来的会排到这里——只挂关系，分数还是你自己调。</p></section>';
     }
     html += '<div class="pf-picked-list">';
-    p.combos.forEach(function (l) {
+    links.forEach(function (l) {
       var c = comboById(l.cid);
       if (!c) return;
+      var isDead = !!p.dropped[l.cid];
       var picks = capChipsHtml(c, "pf-picked-cap");
       if (!picks) picks = '<span class="pf-picked-cap is-empty">没有标突出 / 弱化的项</span>';
-      html += '<button type="button" class="pf-picked-card" data-cid="' + esc(c.id) + '" title="点一下取消这张卡">' +
+      var fromName = (p.stages[l.from] && p.stages[l.from].name) || "";
+      var title = isDead
+        ? "这张卡这一段已弃用；点「启用」让它重新算数"
+        : (l.own ? "点一下取消这张卡" : "从「" + fromName + "」继承来的；这一段可以点右下角「弃用」");
+      html += '<div class="pf-picked-card' + (isDead ? " is-dead" : "") + '" role="button" tabindex="0" data-cid="' + esc(c.id) + '" title="' + esc(title) + '">' +
         '<span class="pf-picked-name">' + esc(c.title || "没起名字的组合") + '</span>' +
         '<span class="pf-picked-caps">' + picks + '</span>' +
-        '<span class="pf-picked-x" aria-hidden="true">×</span></button>';
+        '<span class="pf-picked-from">' + (l.own ? "本段" : esc(fromName)) + '</span>' +
+        '<button type="button" class="pf-picked-drop" data-drop="' + esc(c.id) + '">' + (isDead ? "启用" : "弃用") + '</button>' +
+        '</div>';
     });
     return html + '</div></section>';
   }
@@ -10387,6 +10455,11 @@ var PERSONA_CODEX = {
     if (!c) return;
     var link = comboLinkOf(p, cid);
     if (link) {
+      var ownHere = p.combos.some(function (x) { return x.cid === cid; });
+      if (!ownHere) {
+        toast("这张卡是前面阶段收的，这一段里请用右下角的「弃用」");
+        return;
+      }
       if (Object.keys(link.adds || {}).length) {
         Object.keys(link.adds).forEach(function (sid) {
           p.scores[sid] = clamp((p.scores[sid] || 0) - (link.adds[sid] || 0), 0);
@@ -10421,6 +10494,16 @@ var PERSONA_CODEX = {
       stage.addEventListener("click", function (e) {
         var p = currentProfile();
         if (!p) return;
+
+        var dropBtn = e.target.closest(".pf-picked-drop");
+        if (dropBtn) {
+          var dcid = dropBtn.dataset.drop;
+          if (p.dropped[dcid]) { delete p.dropped[dcid]; toast("重新启用这张卡"); }
+          else { p.dropped[dcid] = true; toast("已弃用：这一段就不算这张卡了"); }
+          saveProfiles();
+          renderProfileStage();
+          return;
+        }
 
         var pick = e.target.closest(".pf-picked-card");
         if (pick) { toggleProfileCombo(p, pick.dataset.cid); return; }
