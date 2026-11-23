@@ -6190,8 +6190,22 @@ var PERSONA_CODEX = {
                       profiles: NS + "de-profile-v1" };
 
   /* 单文件打包版用：__SEED__ 里是作者的内容，只在本地还没有同一条存档时写入。
-     本地已经有的键一律不覆盖，别人打开自己的编辑也不会被作者的数据顶掉。 */
+     本地已经有的键一律不覆盖，别人打开自己的编辑也不会被作者的数据顶掉。
+     加 ?reset=1 可以「按发布版重置」：先把旧数据备份成 <键>-bak-<时间戳>，再灌发布版内容。 */
   if (window.__SEED__ && !TEST_MODE) {
+    var seedReset = /(?:^|[?&])reset=1(?:[&#]|$)/.test(location.search);
+    if (seedReset) {
+      var stamp = Date.now();
+      Object.keys(window.__SEED__).forEach(function (key) {
+        try {
+          var old = localStorage.getItem(key);
+          if (old !== null) {
+            localStorage.setItem(key + "-bak-" + stamp, old);
+            localStorage.removeItem(key);
+          }
+        } catch (err) { /* 忽略 */ }
+      });
+    }
     Object.keys(window.__SEED__).forEach(function (key) {
       try {
         if (localStorage.getItem(key) === null) {
