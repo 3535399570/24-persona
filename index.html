@@ -2782,7 +2782,8 @@ body[data-view="profile"] .lines-view { display: none; }
   white-space: nowrap;
 }
 .pf-stage-add:hover { color: #efe6d6; border-color: rgba(203, 180, 137, .6); }
-.pf-stage-del { padding: 4px 7px; color: #b98a86; }
+.pf-stage-del { padding: 4px 8px; color: #b98a86; }
+.pf-stage-del[disabled] { opacity: .34; cursor: not-allowed; }
 .pf-stage-del:hover { color: #ef8f7f; border-color: rgba(239, 143, 127, .5); }
 .pf-stepnav {
   width: 22px; height: 22px; padding: 0; border-radius: 999px;
@@ -9781,7 +9782,7 @@ var PERSONA_CODEX = {
             '<span class="pf-stage-n">' + (p.stage + 1) + ' / ' + p.stages.length + '</span>' +
             '<button type="button" class="pf-stepnav" data-stage="next"' + (p.stage >= p.stages.length - 1 ? " disabled" : "") + ' aria-label="下一段">›</button>' +
             '<button type="button" class="pf-stage-add" data-stage="add" title="复制当前这一段，往后加一段">+ 阶段</button>' +
-            (p.stages.length > 1 ? '<button type="button" class="pf-stage-del" data-stage="del" title="删掉当前这一段">−</button>' : "") +
+            '<button type="button" class="pf-stage-del" data-stage="del"' + (p.stages.length > 1 ? "" : " disabled") + ' title="' + (p.stages.length > 1 ? "删掉当前这一段：分数、收的卡、招牌都会一起删掉" : "只剩一段了，删不了") + '">删段</button>' +
           '</div>' +
           '<label class="pf-budget-wrap" title="随机时先分给四个大类多少点（每类至少 1、最多 5）">大类' +
             '<input class="pf-budget" id="pf-attr-budget" type="number" min="4" max="20" step="1" value="' + pfAttrBudget + '" aria-label="分给四个大类的点数">点' +
