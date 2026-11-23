@@ -2982,29 +2982,17 @@ body[data-view="profile"] .lines-view { display: none; }
   border-color: rgba(255, 255, 255, .16);
   border-style: dashed;
 }
-.pf-picked-groups { display: flex; flex-direction: column; gap: 14px; }
-.pf-picked-group { --stageh: 197; }
-.pf-picked-group[data-idx="1"] { --stageh: 42; }
-.pf-picked-group[data-idx="2"] { --stageh: 268; }
-.pf-picked-group[data-idx="3"] { --stageh: 340; }
-.pf-picked-group[data-idx="4"] { --stageh: 152; }
-.pf-picked-group[data-idx="5"] { --stageh: 18; }
+.pf-picked-groups { display: flex; flex-direction: column; gap: 10px; }
+.pf-picked-group + .pf-picked-group {
+  margin-top: 4px; padding-top: 12px;
+  border-top: 1px solid rgba(242, 239, 232, .10);
+}
 .pf-picked-ghead {
-  display: flex; align-items: center; gap: 7px; margin: 0 0 7px;
-  font-size: 10.5px; letter-spacing: .16em; color: #a79d8c;
+  display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px;
+  font-size: 10px; letter-spacing: .14em; color: #8a8378;
 }
-.pf-picked-ghead::before {
-  content: ""; width: 6px; height: 6px; border-radius: 50%;
-  background: hsl(var(--stageh) 52% 58%);
-  box-shadow: 0 0 0 3px hsl(var(--stageh) 52% 58% / .16);
-}
-.pf-picked-ghead b { font-weight: 500; color: #cfc7b8; }
-.pf-picked-gtag {
-  padding: 0 5px 1px; border-radius: 999px; font-size: 9.5px; letter-spacing: .08em;
-  color: #b9e0ee; border: 1px solid rgba(111, 179, 201, .34);
-}
-.pf-picked-gcount { margin-left: 7px; font-size: 10px; letter-spacing: 0; color: #8a8378; }
-.pf-picked-group .pf-picked-card { border-left: 2px solid hsl(var(--stageh) 45% 58% / .55); }
+.pf-picked-ghead b { font-weight: 400; color: #a79d8c; }
+.pf-picked-gcount { font-size: 10px; letter-spacing: 0; color: #7c766c; }
 .pf-picked-drop {
   position: absolute; right: 8px; bottom: 7px;
   font: inherit; font-size: 10.5px; letter-spacing: .06em; cursor: pointer;
@@ -10434,8 +10422,7 @@ var PERSONA_CODEX = {
       var gname = (p.stages[g.idx] && p.stages[g.idx].name) || ("第 " + (g.idx + 1) + " 段");
       var gDead = g.list.filter(function (l) { return !!p.dropped[l.cid]; }).length;
       html += '<div class="pf-picked-group" data-idx="' + (g.idx % 6) + '">' +
-        '<div class="pf-picked-ghead"><b>' + esc(gname) + '</b>' +
-        (g.idx === p.stage ? '<span class="pf-picked-gtag">本段</span>' : '') +
+        '<div class="pf-picked-ghead"><b>' + esc(gname) + (g.idx === p.stage ? "（本段）" : "") + '</b>' +
         '<span class="pf-picked-gcount">' + g.list.length + (gDead ? " · 弃用 " + gDead : "") + '</span></div>' +
         '<div class="pf-picked-list">';
       g.list.forEach(function (l) {
