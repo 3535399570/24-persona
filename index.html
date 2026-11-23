@@ -9189,7 +9189,7 @@ var PERSONA_CODEX = {
         var img = el("img", "cg-img", cell);
         img.src = u;
         img.alt = "参考图";
-        img.loading = "lazy";
+        img.decoding = "async";
         cell.addEventListener("click", function () { openImgView({ id: "", src: u, remote: true }); });
       });
       if (addBtn && !addBtn.dataset.bound) {
