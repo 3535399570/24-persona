@@ -8492,6 +8492,16 @@ var PERSONA_CODEX = {
 
   setTimeout(seedPics, 900);
 
+  /* 网页版那组图的远程地址（本地还没存进去的，先按 URL 直接显示） */
+  function seedPicUrls(skill) {
+    var map = window.__SEED_PICS_URLS__;
+    return (map && map[skill]) || [];
+  }
+  function seededCount(skill) {
+    try { return parseInt(localStorage.getItem(NS + "de-seed-pics-n-" + skill) || "0", 10) || 0; }
+    catch (e) { return 0; }
+  }
+
   /* 分体版：图库图片不内嵌，按人格卡片一组放在 assets/pics/<skill>/ 下，
      打开那张卡时才去拉（拉完写进 IndexedDB，下次不再拉） */
   function seedPicsFor(sid) {
@@ -8503,11 +8513,13 @@ var PERSONA_CODEX = {
     } catch (e) { return Promise.resolve(false); }
     var urls = map[sid];
     var arrived = 0;
+    var nKey = NS + "de-seed-pics-n-" + sid;
     var jobs = urls.map(function (u) {
       return fetch(assetUrl(u)).then(function (r) { return r.blob(); })
         .then(function (b) { return mediaAdd(sid, b); })
         .then(function () {
           arrived++;
+          try { localStorage.setItem(nKey, String(arrived)); } catch (e) {}
           /* 边下边显示：每收到 3 张就重画一次，不用等整组下完 */
           if (arrived % 3 === 0) renderGallery(sid);
         })
@@ -9040,6 +9052,7 @@ var PERSONA_CODEX = {
   }
 
   function mediaSrc(item) {
+    if (item.src) return item.src;
     if (item.dataUrl) return item.dataUrl;
     if (!item.blob) return "";
     if (!item._url) item._url = URL.createObjectURL(item.blob);
@@ -9145,7 +9158,11 @@ var PERSONA_CODEX = {
       /* 只清缩略图，保留末尾那个「＋」按钮（它在初始 markup 里，同步就存在） */
       Array.prototype.slice.call(gal.querySelectorAll(".cg-cell")).forEach(function (n) { n.remove(); });
       var addBtn = gal.querySelector(".cg-add");
-      gal.classList.toggle("is-empty", !items.length);
+      /* 网页版的图先按远程 URL 直接铺出来（秒出），后台再慢慢存进本地 */
+      var pending = [];
+      var seedAll = seedPicUrls(skill);
+      if (seedAll.length) pending = seedAll.slice(seededCount(skill));
+      gal.classList.toggle("is-empty", !items.length && !pending.length);
       items.forEach(function (it) {
         var cell = el("div", "cg-cell", gal);
         if (addBtn) gal.insertBefore(cell, addBtn);
@@ -9165,6 +9182,15 @@ var PERSONA_CODEX = {
             toast("删掉一张");
           });
         });
+      });
+      pending.forEach(function (u) {
+        var cell = el("div", "cg-cell", gal);
+        if (addBtn) gal.insertBefore(cell, addBtn);
+        var img = el("img", "cg-img", cell);
+        img.src = u;
+        img.alt = "参考图";
+        img.loading = "lazy";
+        cell.addEventListener("click", function () { openImgView({ id: "", src: u, remote: true }); });
       });
       if (addBtn && !addBtn.dataset.bound) {
         addBtn.dataset.bound = "1";
@@ -9198,7 +9224,9 @@ var PERSONA_CODEX = {
     vw.hidden = false;
     vw.dataset.id = item.id;
     vw.dataset.skill = codexId;
+    vw.querySelector(".codex-imgview-del").style.display = item.remote ? "none" : "";
     vw.querySelector(".codex-imgview-del").onclick = function () {
+      if (item.remote) return;
       mediaDel(vw.dataset.skill, vw.dataset.id).then(function () {
         vw.hidden = true;
         renderGallery(vw.dataset.skill);
@@ -9206,6 +9234,7 @@ var PERSONA_CODEX = {
       });
     };
     vw.querySelector(".codex-imgview-clear").onclick = function () {
+      if (item.remote) return;
       if (!window.confirm("清空这个人格的参考图库？")) return;
       mediaClear(vw.dataset.skill).then(function () {
         vw.hidden = true;
