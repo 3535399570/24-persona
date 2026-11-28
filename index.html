@@ -3089,6 +3089,29 @@ body[data-view="profile"] .lines-view { display: none; }
   }
 }
 
+
+/* 右下角：最后编辑时间 */
+.last-edit {
+  position: fixed;
+  right: 16px;
+  bottom: 40px;
+  z-index: 40;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.34);
+  background: rgba(10, 10, 13, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  user-select: none;
+}
+body.shot .last-edit { display: none; }
+@media (max-width: 760px) {
+  .last-edit { right: 10px; bottom: 32px; font-size: 10px; padding: 3px 8px; }
+}
 </style>
 </head>
 <body data-view="panel">
@@ -6169,7 +6192,6 @@ var PERSONA_CODEX = {
     }
   }
 };
-
 </script>
 <script>
 /* ============================================================
@@ -6263,8 +6285,8 @@ var PERSONA_CODEX = {
     }
   ];
 
-  var PIP_COUNT = 5;
-  var MAX_LEVEL = 5;
+  var PIP_COUNT = 6;
+  var MAX_LEVEL = 6;
   var PF_NORMAL = 3;          /* 普通人标准线：低于它的分数在人物分析里标红 */
   var PF_HIGH = 4;            /* 高出一截的线：到它及以上的人物名在人物分析里标蓝 */
   var STORAGE_KEY = NS + "de-persona-board-v2";
@@ -8665,7 +8687,7 @@ var PERSONA_CODEX = {
       });
       paintAll();
       save(true);
-      toast("两张各随机了一套 0–5");
+      toast("两张各随机了一套 0–6");
     } else if (action === "copy") {
       state.B.attrs = Object.assign({}, state.A.attrs);
       state.B.skills = Object.assign({}, state.A.skills);
@@ -9946,8 +9968,8 @@ var PERSONA_CODEX = {
           '</span></div>';
       });
       rows += '<div class="pf-row"><button type="button" class="pf-attr" data-attr="' + a.id + '" data-lv="' + attrLv +
-        '" title="' + esc("「" + a.name + "」现在是 " + attrLv + "，下面 6 个人格也都按这个档走（0–" + MAX_LEVEL + "）" +
-          "；左键 +1：整行一起设成新值；右键 −1；之后还能单独微调某一格") + '">' +
+        '" title="' + esc("「" + a.name + "」= " + attrLv + "（0–" + MAX_LEVEL + "）" +
+          "。这是单独的一笔账，和下面 6 个人格的分数互不影响；左键 +1、右键 −1") + '">' +
         '<span class="pf-attr-name">' + a.name + '</span><b class="pf-attr-lv">' + attrLv + '</b></button>' +
         '<div class="pf-cells">' + cells + '</div></div>';
     });
@@ -9968,7 +9990,7 @@ var PERSONA_CODEX = {
         profilePickedHtml(p) +
       '</div>' +
       '<p class="pf-foot">24 个声音合计 <b>' + total + '</b> · ' + PF_NORMAL + ' 是普通人标准，低于它名字标红、' + PF_HIGH + ' 以上标蓝 · 左键 +1、右键 −1' +
-        ' · 点左边的属性名：整行 6 个一起设成那个档' +
+        ' · 左边四个属性各自单独记，和下面 24 格分数互不影响' +
         ' · 皇冠 正 <b class="pf-foot-sig">' + crownUp + '</b> · 倒 <b class="pf-foot-sig">' + crownDown + '</b></p>';
 
     applyProfileComboFilter();     /* 重渲染后把搜索 / 分类状态接着用 */
@@ -10071,7 +10093,7 @@ var PERSONA_CODEX = {
   }
 
   var pfAttrBudget = readBudget(PF_ATTR_BUDGET_KEY, 12, 4, 20);
-  var pfMicroBudget = readBudget(PF_MICRO_BUDGET_KEY, 36, 0, 120);
+  var pfMicroBudget = readBudget(PF_MICRO_BUDGET_KEY, 72, 0, 120);
 
   function saveAttrBudget(n) {
     pfAttrBudget = Math.max(4, Math.min(20, Math.round(Number(n) || 0)));
@@ -10134,13 +10156,7 @@ var PERSONA_CODEX = {
         budget--;
       }
       A = want;
-      free.forEach(function (id) {
-        p.attrs[id] = lv[id];
-        ATTRIBUTES.forEach(function (a) {
-          if (a.id !== id) return;
-          a.skills.forEach(function (k) { p.scores[k.id] = lv[id]; });
-        });
-      });
+      free.forEach(function (id) { p.attrs[id] = lv[id]; });
       attrPoints = A;
     } else {
       A = lockedSum;                                       /* 四类全锁：只动微调 */
@@ -10587,19 +10603,18 @@ var PERSONA_CODEX = {
     }
   }
 
-  /* 属性名可点：智力 / 精神 / 体格 / 身手 各自带着下面 6 个人格一起 ±1 */
+  /* 属性名可点：智力 / 精神 / 体格 / 身手 各自 ±1，和 24 格分数互不影响 */
   function attrById(id) {
     for (var i = 0; i < ATTRIBUTES.length; i++) if (ATTRIBUTES[i].id === id) return ATTRIBUTES[i];
     return null;
   }
-  /* 属性是单独的一档：智力 3 就是这一行 6 个人格都按 3 起走，之后还能逐格微调 */
+  /* 属性是单独的一档：智力 3 只代表这一大类给了 3，具体 6 个格子各自有分 */
   function attrBase(p, attrId) {
     if (p.attrs && typeof p.attrs[attrId] === "number") return clamp(p.attrs[attrId], 0);
     var a = attrById(attrId);
     if (!a) return 0;
-    var lo = MAX_LEVEL;
-    a.skills.forEach(function (k) { lo = Math.min(lo, clamp(p.scores[k.id] || 0, 0)); });
-    return lo === MAX_LEVEL ? 0 : lo;      /* 老档案没存过档值：按这一行最低的那格算 */
+    /* 老档案没存过档值：先当普通人，不再拿下面几格去倒推 */
+    return clamp(PF_NORMAL, 0);
   }
   function bumpAttr(p, attrId, delta) {
     var attr = attrById(attrId);
@@ -10612,10 +10627,9 @@ var PERSONA_CODEX = {
     }
     p.attrs = p.attrs || {};
     p.attrs[attrId] = to;
-    attr.skills.forEach(function (k) { p.scores[k.id] = to; });
     saveProfiles();
     renderProfileStage();
-    toast("「" + attr.name + "」= " + to + " · 下面 6 项都设成 " + to + "（还能单独微调）");
+    toast("「" + attr.name + "」= " + to + " · 只改这一笔，24 格分数不动");
   }
 
   function toggleProfileCombo(p, cid) {
@@ -10818,7 +10832,7 @@ var PERSONA_CODEX = {
           renderProfileStage();
           return;
         }
-        /* 属性名上的右键：整行 6 个人格各 −1 */
+        /* 属性名上的右键：只把这一个大类 −1，24 格分数不动 */
         var attrBtn = e.target.closest(".pf-attr");
         if (attrBtn) {
           e.preventDefault();
@@ -11325,8 +11339,60 @@ var PERSONA_CODEX = {
     openCodex(codexParam[1]);
     if (/[?&]edit=1\b/.test(location.search)) toggleEdit(true);
   }
-})();
 
+  /* ---- 右下角：最后编辑时间 ---- */
+  var LAST_EDIT_KEY = NS + "de-last-edit-v1";
+  var lastEditEl = null;
+  var userTouched = false;   /* 用户动过界面之前的写入都算初始化，不记时间 */
+
+  function fmtEdit(ts) {
+    if (!ts) return "还没有编辑";
+    var d = new Date(ts);
+    function p(n) { return n < 10 ? "0" + n : "" + n; }
+    return "最后编辑 " + d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) +
+      " " + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+
+  function paintLastEdit(ts) {
+    if (!lastEditEl) return;
+    lastEditEl.textContent = fmtEdit(ts);
+    lastEditEl.title = ts ? new Date(ts).toLocaleString() : "还没有任何改动";
+  }
+
+  (function bindLastEdit() {
+    lastEditEl = document.createElement("div");
+    lastEditEl.className = "last-edit";
+    document.body.appendChild(lastEditEl);
+    var saved = 0;
+    try { saved = parseInt(localStorage.getItem(LAST_EDIT_KEY) || "0", 10) || 0; } catch (e) {}
+    paintLastEdit(saved);
+
+    /* 只有当用户真的动过界面，之后的写入才算「编辑」 */
+    function markTouched() { userTouched = true; }
+    document.addEventListener("pointerdown", markTouched, true);
+    document.addEventListener("keydown", markTouched, true);
+    document.addEventListener("click", markTouched, true);
+
+    /* 任何 de- 开头的存档写入都算一次编辑（跳过备份键与自身） */
+    var origSet = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k, v) {
+      var ret = origSet.apply(this, arguments);
+      try {
+        if (typeof k === "string" &&
+            k.indexOf(NS + "de-") === 0 &&
+            k !== LAST_EDIT_KEY &&
+            k.indexOf("-bak-") < 0 &&
+            userTouched) {
+          var now = Date.now();
+          origSet.call(this, LAST_EDIT_KEY, String(now));
+          paintLastEdit(now);
+        }
+      } catch (e) {}
+      return ret;
+    };
+  })();
+
+})();
 </script>
 </body>
 </html>
